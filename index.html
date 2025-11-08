@@ -1,0 +1,73 @@
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Teaching App — Home</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="icon" href="data:;base64,iVBORw0KGgo=">
+<style>
+.card-hover:hover{ transform: translateY(-6px) scale(1.01); }
+.glass{ backdrop-filter: blur(6px); background: rgba(255,255,255,0.6); }
+</style>
+</head>
+<body class="bg-gradient-to-b from-slate-50 to-slate-100 min-h-screen font-sans">
+<div class="max-w-6xl mx-auto p-8">
+<header class="flex items-center justify-between mb-8">
+<h1 class="text-3xl font-bold">CoreZone Teaching — Dashboard</h1>
+<nav class="space-x-4">
+<a href="whiteboard.html" class="text-slate-600 hover:text-slate-900">Open Whiteboard</a>
+<a href="notes.html" class="text-slate-600 hover:text-slate-900">Notes</a>
+</nav>
+</header>
+
+
+<p class="text-slate-600 mb-6">Click any card to open the feature. Designed with modern UI, animated cards and illustrative images.</p>
+
+
+<main class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Whiteboard -->
+<a href="whiteboard.html" class="group block p-6 rounded-2xl shadow-lg bg-white card-hover transition-transform transform">
+<div class="flex items-center gap-4">
+<img src="https://img.icons8.com/fluency/48/000000/whiteboard.png" alt="wb" />
+<div>
+<h2 class="text-xl font-semibold">Whiteboard</h2>
+<p class="text-slate-500">Add images, shapes, text, group, edit background & more.</p>
+</div>
+</div>
+<div class="mt-4 h-36 rounded-lg overflow-hidden bg-gradient-to-br from-indigo-50 to-white flex items-center justify-center">
+<img src="https://images.unsplash.com/photo-1529070538774-1843cb3265df?auto=format&q=60&fit=crop&w=800&h=400" class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform" />
+</div>
+</a>
+
+
+<!-- Notes -->
+<a href="notes.html" class="group block p-6 rounded-2xl shadow-lg bg-white card-hover transition-transform transform">
+<div class="flex items-center gap-4">
+<img src="https://img.icons8.com/fluency/48/000000/document.png" alt="notes" />
+<div>
+<h2 class="text-xl font-semibold">Notes (A4 — Landscape)</h2>
+<p class="text-slate-500">Landscape A4 sheets with pen, images, shapes and multi-pages.</p>
+</div>
+</div>
+<div class="mt-4 h-36 rounded-lg overflow-hidden bg-gradient-to-br from-yellow-50 to-white flex items-center justify-center">
+<img src="https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?auto=format&q=60&fit=crop&w=800&h=400" class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform" />
+</div>
+</a>
+
+
+<!-- Attendance -->
+<a href="attendance.html" class="group block p-6 rounded-2xl shadow-lg bg-white card-hover transition-transform transform">
+<div class="flex items-center gap-4">
+<img src="https://img.icons8.com/fluency/48/000000/checklist.png" alt="att" />
+<div>
+<h2 class="text-xl font-semibold">Attendance</h2>
+<p class="text-slate-500">Select class, mark present/absent, add class or students.</p>
+</div>
+</div>
+<div class="mt-4 h-36 rounded-lg overflow-hidden bg-gradient-to-br from-emerald-50 to-white flex items-center justify-center">
+<img src="https://images.unsplash.com/photo-1529333166437-7750a6dd5a70?auto=format&q=60&fit=crop&w=800&h=400" class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform" />
+</div>
+</a>
+
+
+</html>

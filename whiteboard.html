@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modern Whiteboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a;
+      color: white;
+      overflow: hidden;
+    }
+    header {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      background: #1e293b;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    button, select, input {
+      background: #334155;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #475569;
+    }
+    #board {
+      display: block;
+      width: 100vw;
+      height: calc(100vh - 60px);
+      background: white;
+      cursor: crosshair;
+    }
+    .toolbox {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="toolbox">
+      <button onclick="setTool('pen')">✏️ Pen</button>
+      <button onclick="setTool('eraser')">🧽 Eraser</button>
+      <button onclick="setTool('text')">🔤 Text</button>
+      <button onclick="setTool('rect')">▭ Rect</button>
+      <button onclick="setTool('circle')">⚪ Circle</button>
+      <button onclick="setTool('line')">📏 Line</button>
+      <button onclick="setTool('arrow')">➡️ Arrow</button>
+      <input type="color" id="colorPicker" value="#000000">
+      <input type="number" id="sizePicker" value="2" min="1" max="20">
+      <button onclick="uploadImage()">🖼️ Add Image</button>
+      <button onclick="changeBackground()">🎨 Background</button>
+      <button onclick="undo()">↩️ Undo</button>
+      <button onclick="redo()">↪️ Redo</button>
+      <button onclick="clearBoard()">🗑️ Clear</button>
+      <button onclick="saveBoard()">💾 Save</button>
+    </div>
+    <input type="file" id="fileInput" style="display:none;" accept="image/*">
+  </header>
+
+  <canvas id="board"></canvas>
+
+  <script>
+    const canvas = document.getElementById("board");
+    const ctx = canvas.getContext("2d");
+    let tool = "pen";
+    let drawing = false;
+    let startX, startY;
+    let undoStack = [];
+    let redoStack = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight - 60;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    function saveState() {
+      undoStack.push(canvas.toDataURL());
+      redoStack = [];
+    }
+
+    function setTool(t) { tool = t; }
+
+    canvas.addEventListener("mousedown", (e) => {
+      saveState();
+      drawing = true;
+      startX = e.offsetX;
+      startY = e.offsetY;
+      if (tool === "text") {
+        const text = prompt("Enter text:");
+        if (text) {
+          ctx.fillStyle = document.getElementById("colorPicker").value;
+          ctx.font = "20px Arial";
+          ctx.fillText(text, startX, startY);
+        }
+        drawing = false;
+      }
+    });
+
+    canvas.addEventListener("mouseup", (e) => {
+      if (!drawing) return;
+      drawing = false;
+      const color = document.getElementById("colorPicker").value;
+      const size = document.getElementById("sizePicker").value;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = size;
+
+      let endX = e.offsetX;
+      let endY = e.offsetY;
+
+      if (tool === "rect") {
+        ctx.strokeRect(startX, startY, endX - startX, endY - startY);
+      } else if (tool === "circle") {
+        let radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+        ctx.beginPath();
+        ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+      } else if (tool === "line") {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      } else if (tool === "arrow") {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+        let angle = Math.atan2(endY - startY, endX - startX);
+        ctx.lineTo(endX - 10 * Math.cos(angle - Math.PI/6), endY - 10 * Math.sin(angle - Math.PI/6));
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - 10 * Math.cos(angle + Math.PI/6), endY - 10 * Math.sin(angle + Math.PI/6));
+        ctx.stroke();
+      }
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+      if (!drawing) return;
+      const color = document.getElementById("colorPicker").value;
+      const size = document.getElementById("sizePicker").value;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = size;
+
+      if (tool === "pen") {
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+      } else if (tool === "eraser") {
+        ctx.clearRect(e.offsetX, e.offsetY, size*2, size*2);
+      }
+    });
+
+    function uploadImage() {
+      document.getElementById("fileInput").click();
+    }
+    document.getElementById("fileInput").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 50, 50, 300, 200);
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function changeBackground() {
+      const bg = prompt("Enter background color or image URL:");
+      if (bg.startsWith("http")) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        img.src = bg;
+      } else {
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    function undo() {
+      if (undoStack.length > 0) {
+        redoStack.push(canvas.toDataURL());
+        let img = new Image();
+        img.src = undoStack.pop();
+        img.onload = () => ctx.drawImage(img, 0, 0);
+      }
+    }
+
+    function redo() {
+      if (redoStack.length > 0) {
+        undoStack.push(canvas.toDataURL());
+        let img = new Image();
+        img.src = redoStack.pop();
+        img.onload = () => ctx.drawImage(img, 0, 0);
+      }
+    }
+
+    function clearBoard() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function saveBoard() {
+      const link = document.createElement("a");
+      link.download = "whiteboard.png";
+      link.href = canvas.toDataURL();
+      link.click();
+    }
+  </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modern Whiteboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a;
+      color: white;
+      overflow: hidden;
+    }
+    header {
+      display: flex;
+      gap: 12px;
+      padding: 12px;
+      background: #1e293b;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      flex-wrap: wrap;
+    }
+    button, select, input {
+      background: #334155;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #475569;
+    }
+    #board {
+      display: block;
+      width: 100vw;
+      height: calc(100vh - 60px);
+      background: white;
+      cursor: crosshair;
+    }
+    .toolbox {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: #334155;
+      min-width: 160px;
+      box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+      z-index: 1;
+      border-radius: 6px;
+      padding: 8px;
+      top: 100%;
+      left: 0;
+      margin-top: 5px;
+    }
+    .dropdown-content button {
+      width: 100%;
+      text-align: left;
+      margin-bottom: 5px;
+    }
+    .dropdown:hover .dropdown-content {
+      display: block;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 100;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.7);
+    }
+    .modal-content {
+      background-color: #1e293b;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .format-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 15px 0;
+    }
+    .format-option {
+      padding: 10px;
+      text-align: center;
+      background: #334155;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .format-option:hover {
+      background: #475569;
+    }
+    .color-input {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .save-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .save-option {
+      padding: 10px;
+      background: #334155;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .save-option:hover {
+      background: #475569;
+    }
+    .background-grid {
+      background-image: linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    .background-lined {
+      background-image: linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+      background-size: 100% 24px;
+    }
+    .background-blank {
+      background: white;
+    }
+    .shortcut-hint {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(30, 41, 59, 0.8);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="toolbox">
+      <!-- Pen dropdown -->
+      <div class="dropdown">
+        <button>✏️ Pen</button>
+        <div class="dropdown-content">
+          <button onclick="setPenType('laser')">Laser</button>
+          <button onclick="setPenType('highlighter')">Highlighter</button>
+          <button onclick="setPenType('marker')">Marker</button>
+          <div style="display:flex;align-items:center;margin-top:5px;">
+            <input type="color" id="penColor" value="#000000" onchange="setPenColor(this.value)">
+            <span>Color</span>
+          </div>
+          <div style="display:flex;align-items:center;margin-top:5px;">
+            <input type="range" id="penSize" min="1" max="20" value="2" onchange="setPenSize(this.value)">
+            <span>Size</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Eraser dropdown -->
+      <div class="dropdown">
+        <button>🧽 Eraser</button>
+        <div class="dropdown-content">
+          <button onclick="setEraserType('stroke')">Erase Entire Stroke</button>
+          <button onclick="setEraserType('area')">Erase Selected Area</button>
+        </div>
+      </div>
+      
+      <!-- Shapes dropdown -->
+      <div class="dropdown">
+        <button>🔷 Shapes</button>
+        <div class="dropdown-content">
+          <button onclick="setTool('rect')">Rectangle</button>
+          <button onclick="setTool('circle')">Circle</button>
+          <button onclick="setTool('triangle')">Triangle</button>
+          <button onclick="setTool('line')">Line</button>
+          <button onclick="setTool('arrow')">Arrow</button>
+        </div>
+      </div>
+      
+      <!-- File dropdown -->
+      <div class="dropdown">
+        <button>📁 File</button>
+        <div class="dropdown-content">
+          <button onclick="uploadImage()">Add Image</button>
+          <button onclick="uploadVideo()">Add Video</button>
+        </div>
+      </div>
+      
+      <button onclick="clearBoard()">🗑️ Clear</button>
+      <button onclick="undo()">↩️ Undo</button>
+      <button onclick="redo()">↪️ Redo</button>
+      
+      <!-- Format Background button -->
+      <button onclick="showFormatModal()">🎨 Format Background</button>
+      
+      <!-- Save Document button -->
+      <button onclick="showSaveModal()">💾 Save Document</button>
+      
+      <!-- Orientation dropdown -->
+      <div class="dropdown">
+        <button>🔄 Orientation</button>
+        <div class="dropdown-content">
+          <button onclick="setOrientation('portrait')">Portrait</button>
+          <button onclick="setOrientation('landscape')">Landscape</button>
+        </div>
+      </div>
+      
+      <!-- Page navigation -->
+      <button onclick="prevPage()">⬅️ Previous</button>
+      <button onclick="nextPage()">➡️ Next</button>
+      <button onclick="addPage()">➕ Add Page</button>
+      <span id="pageInfo">Page 1 of 1</span>
+    </div>
+    <input type="file" id="fileInput" style="display:none;" accept="image/*,video/*">
+  </header>
+
+  <canvas id="board"></canvas>
+  
+  <!-- Format Background Modal -->
+  <div id="formatModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('formatModal')">&times;</span>
+      <h3>Format Background</h3>
+      <div class="format-options">
+        <div class="format-option" onclick="setBackgroundFormat('grid')">
+          <div>Grid</div>
+        </div>
+        <div class="format-option" onclick="setBackgroundFormat('lined')">
+          <div>Lined</div>
+        </div>
+        <div class="format-option" onclick="setBackgroundFormat('blank')">
+          <div>Blank</div>
+        </div>
+      </div>
+      <div class="color-input">
+        <input type="color" id="bgColorPicker" value="#ffffff">
+        <input type="text" id="bgColorHex" placeholder="#FFFFFF" onchange="setBackgroundColor(this.value)">
+      </div>
+    </div>
+  </div>
+  
+  <!-- Save Document Modal -->
+  <div id="saveModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('saveModal')">&times;</span>
+      <h3>Save Document</h3>
+      <div class="save-options">
+        <div class="save-option" onclick="saveAsPDF()">
+          <span>PDF</span>
+        </div>
+        <div class="save-option" onclick="saveAsDOCX()">
+          <span>DOCX</span>
+        </div>
+        <div class="save-option" onclick="saveAsPPTX()">
+          <span>PPTX</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="shortcut-hint">
+    Shortcuts: Ctrl+Z (Undo), Ctrl+Y (Redo), Ctrl+C (Copy), Ctrl+V (Paste)
+  </div>
+
+  <script>
+    const canvas = document.getElementById("board");
+    const ctx = canvas.getContext("2d");
+    let tool = "pen";
+    let drawing = false;
+    let startX, startY;
+    let undoStack = [];
+    let redoStack = [];
+    let currentPage = 1;
+    let totalPages = 1;
+    let penType = "marker";
+    let eraserType = "stroke";
+    let orientation = "landscape";
+    let backgroundFormat = "blank";
+    let backgroundColor = "#ffffff";
+
+    // Initialize the canvas
+    function resizeCanvas() {
+      if (orientation === "landscape") {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight - 60;
+      } else {
+        canvas.width = window.innerHeight - 60;
+        canvas.height = window.innerWidth;
+      }
+      applyBackground();
+    }
+    
+    function applyBackground() {
+      ctx.fillStyle = backgroundColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Apply background format
+      if (backgroundFormat === "grid") {
+        drawGridBackground();
+      } else if (backgroundFormat === "lined") {
+        drawLinedBackground();
+      }
+    }
+    
+    function drawGridBackground() {
+      const gridSize = 20;
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.1)";
+      ctx.lineWidth = 1;
+      
+      // Draw vertical lines
+      for (let x = gridSize; x < canvas.width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      
+      // Draw horizontal lines
+      for (let y = gridSize; y < canvas.height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+    }
+    
+    function drawLinedBackground() {
+      const lineHeight = 24;
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.1)";
+      ctx.lineWidth = 1;
+      
+      for (let y = lineHeight; y < canvas.height; y += lineHeight) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    function saveState() {
+      undoStack.push(canvas.toDataURL());
+      redoStack = [];
+    }
+
+    function setTool(t) { 
+      tool = t; 
+    }
+    
+    function setPenType(type) {
+      penType = type;
+      if (type === "laser") {
+        document.getElementById("penSize").value = 2;
+      } else if (type === "highlighter") {
+        document.getElementById("penSize").value = 5;
+      } else if (type === "marker") {
+        document.getElementById("penSize").value = 10;
+      }
+      setPenSize(document.getElementById("penSize").value);
+    }
+    
+    function setEraserType(type) {
+      eraserType = type;
+    }
+    
+    function setPenColor(color) {
+      document.getElementById("penColor").value = color;
+    }
+    
+    function setPenSize(size) {
+      document.getElementById("penSize").value = size;
+    }
+    
+    function setOrientation(orient) {
+      orientation = orient;
+      resizeCanvas();
+    }
+    
+    function setBackgroundFormat(format) {
+      backgroundFormat = format;
+      applyBackground();
+      closeModal('formatModal');
+    }
+    
+    function setBackgroundColor(color) {
+      backgroundColor = color;
+      document.getElementById("bgColorPicker").value = color;
+      document.getElementById("bgColorHex").value = color;
+      applyBackground();
+    }
+
+    canvas.addEventListener("mousedown", (e) => {
+      saveState();
+      drawing = true;
+      startX = e.offsetX;
+      startY = e.offsetY;
+      
+      if (tool === "text") {
+        const text = prompt("Enter text:");
+        if (text) {
+          ctx.fillStyle = document.getElementById("penColor").value;
+          ctx.font = "20px Arial";
+          ctx.fillText(text, startX, startY);
+        }
+        drawing = false;
+      }
+    });
+
+    canvas.addEventListener("mouseup", (e) => {
+      if (!drawing) return;
+      drawing = false;
+      
+      const color = document.getElementById("penColor").value;
+      const size = document.getElementById("penSize").value;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = size;
+
+      let endX = e.offsetX;
+      let endY = e.offsetY;
+
+      if (tool === "rect") {
+        ctx.strokeRect(startX, startY, endX - startX, endY - startY);
+      } else if (tool === "circle") {
+        let radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+        ctx.beginPath();
+        ctx.arc(startX, startY, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+      } else if (tool === "triangle") {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.lineTo(startX * 2 - endX, endY);
+        ctx.closePath();
+        ctx.stroke();
+      } else if (tool === "line") {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      } else if (tool === "arrow") {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+        let angle = Math.atan2(endY - startY, endX - startX);
+        ctx.beginPath();
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - 10 * Math.cos(angle - Math.PI/6), endY - 10 * Math.sin(angle - Math.PI/6));
+        ctx.moveTo(endX, endY);
+        ctx.lineTo(endX - 10 * Math.cos(angle + Math.PI/6), endY - 10 * Math.sin(angle + Math.PI/6));
+        ctx.stroke();
+      }
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+      if (!drawing) return;
+      const color = document.getElementById("penColor").value;
+      const size = document.getElementById("penSize").value;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = size;
+
+      if (tool === "pen") {
+        ctx.lineCap = "round";
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
+      } else if (tool === "eraser") {
+        if (eraserType === "stroke") {
+          ctx.clearRect(e.offsetX - size, e.offsetY - size, size * 2, size * 2);
+        } else {
+          // Area eraser would be more complex to implement
+          ctx.clearRect(e.offsetX - size, e.offsetY - size, size * 2, size * 2);
+        }
+      }
+    });
+
+    function uploadImage() {
+      document.getElementById("fileInput").click();
+    }
+    
+    function uploadVideo() {
+      alert("Video upload functionality would be implemented here");
+    }
+    
+    document.getElementById("fileInput").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          saveState();
+          ctx.drawImage(img, 50, 50, 300, 200);
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function showFormatModal() {
+      document.getElementById("formatModal").style.display = "block";
+    }
+    
+    function showSaveModal() {
+      document.getElementById("saveModal").style.display = "block";
+    }
+    
+    function closeModal(modalId) {
+      document.getElementById(modalId).style.display = "none";
+    }
+
+    function undo() {
+      if (undoStack.length > 0) {
+        redoStack.push(canvas.toDataURL());
+        let img = new Image();
+        img.src = undoStack.pop();
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+        };
+      }
+    }
+
+    function redo() {
+      if (redoStack.length > 0) {
+        undoStack.push(canvas.toDataURL());
+        let img = new Image();
+        img.src = redoStack.pop();
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+        };
+      }
+    }
+
+    function clearBoard() {
+      if (confirm("Are you sure you want to clear the board?")) {
+        saveState();
+        applyBackground();
+      }
+    }
+    
+    function saveAsPDF() {
+      alert("Saving as PDF...");
+      closeModal('saveModal');
+    }
+    
+    function saveAsDOCX() {
+      alert("Saving as DOCX...");
+      closeModal('saveModal');
+    }
+    
+    function saveAsPPTX() {
+      alert("Saving as PPTX...");
+      closeModal('saveModal');
+    }
+    
+    function prevPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        updatePageInfo();
+        // In a real app, you would load the previous page's content
+        applyBackground();
+      }
+    }
+    
+    function nextPage() {
+      if (currentPage < totalPages) {
+        currentPage++;
+        updatePageInfo();
+        // In a real app, you would load the next page's content
+        applyBackground();
+      }
+    }
+    
+    function addPage() {
+      totalPages++;
+      currentPage = totalPages;
+      updatePageInfo();
+      // In a real app, you would create a new page
+      applyBackground();
+    }
+    
+    function updatePageInfo() {
+      document.getElementById("pageInfo").textContent = `Page ${currentPage} of ${totalPages}`;
+    }
+    
+    // Keyboard shortcuts
+    document.addEventListener("keydown", (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+          case 'z':
+            e.preventDefault();
+            undo();
+            break;
+          case 'y':
+            e.preventDefault();
+            redo();
+            break;
+          case 'c':
+            // Copy functionality would be implemented here
+            break;
+          case 'v':
+            // Paste functionality would be implemented here
+            break;
+        }
+      }
+    });
+
+    // Close modals when clicking outside
+    window.addEventListener("click", (e) => {
+      if (e.target.classList.contains("modal")) {
+        e.target.style.display = "none";
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Attendance Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+  <header class="bg-indigo-600 text-white p-4 shadow-lg">
+    <h1 class="text-2xl font-bold">Attendance Portal</h1>
+  </header>
+
+  <main class="max-w-5xl mx-auto mt-8 p-6 bg-white shadow rounded-lg">
+    <!-- Class Selection -->
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <label for="classSelect" class="font-semibold">Select Class:</label>
+        <select id="classSelect" class="p-2 border rounded">
+          <option value="class9">Class 9</option>
+          <option value="class10">Class 10</option>
+        </select>
+      </div>
+      <div class="flex gap-3">
+        <button onclick="openModal('classModal')" class="px-4 py-2 bg-indigo-500 text-white rounded">+ Add Class</button>
+        <button onclick="openModal('studentModal')" class="px-4 py-2 bg-green-500 text-white rounded">+ Add Student</button>
+      </div>
+    </div>
+
+    <!-- Student List -->
+    <table class="w-full border-collapse border">
+      <thead>
+        <tr class="bg-gray-200">
+          <th class="p-3 border">#</th>
+          <th class="p-3 border">Name</th>
+          <th class="p-3 border">Present</th>
+          <th class="p-3 border">Absent</th>
+        </tr>
+      </thead>
+      <tbody id="studentTable">
+        <!-- Sample Data -->
+        <tr>
+          <td class="p-3 border">1</td>
+          <td class="p-3 border">Amit Sharma</td>
+          <td class="p-3 border text-center"><input type="checkbox" class="pCheck"></td>
+          <td class="p-3 border text-center"><input type="checkbox" class="aCheck"></td>
+        </tr>
+        <tr>
+          <td class="p-3 border">2</td>
+          <td class="p-3 border">Neha Gupta</td>
+          <td class="p-3 border text-center"><input type="checkbox" class="pCheck"></td>
+          <td class="p-3 border text-center"><input type="checkbox" class="aCheck"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Footer Buttons -->
+    <div class="mt-6 flex justify-end gap-4">
+      <button onclick="exportCSV()" class="px-4 py-2 bg-blue-500 text-white rounded">Export CSV</button>
+      <button onclick="clearAttendance()" class="px-4 py-2 bg-red-500 text-white rounded">Clear</button>
+    </div>
+  </main>
+
+  <!-- Add Class Modal -->
+  <div id="classModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white p-6 rounded shadow-lg w-96">
+      <h2 class="text-xl font-bold mb-4">Add Class</h2>
+      <input id="newClass" type="text" placeholder="Enter class name" class="w-full p-2 border rounded mb-4">
+      <div class="flex justify-end gap-3">
+        <button onclick="closeModal('classModal')" class="px-3 py-2 border rounded">Cancel</button>
+        <button onclick="addClass()" class="px-3 py-2 bg-indigo-500 text-white rounded">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Student Modal -->
+  <div id="studentModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white p-6 rounded shadow-lg w-96">
+      <h2 class="text-xl font-bold mb-4">Add Student</h2>
+      <input id="newStudent" type="text" placeholder="Enter student name" class="w-full p-2 border rounded mb-4">
+      <div class="flex justify-end gap-3">
+        <button onclick="closeModal('studentModal')" class="px-3 py-2 border rounded">Cancel</button>
+        <button onclick="addStudent()" class="px-3 py-2 bg-green-500 text-white rounded">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const studentTable = document.getElementById('studentTable');
+    const classSelect = document.getElementById('classSelect');
+
+    // Open/Close Modal
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    // Add Class
+    function addClass() {
+      const newClass = document.getElementById('newClass').value;
+      if(newClass) {
+        let option = document.createElement('option');
+        option.value = newClass.toLowerCase().replace(/\s+/g, '');
+        option.textContent = newClass;
+        classSelect.appendChild(option);
+        document.getElementById('newClass').value = '';
+        closeModal('classModal');
+      }
+    }
+
+    // Add Student
+    function addStudent() {
+      const newStudent = document.getElementById('newStudent').value;
+      if(newStudent) {
+        let row = document.createElement('tr');
+        row.innerHTML = `
+          <td class="p-3 border">${studentTable.children.length + 1}</td>
+          <td class="p-3 border">${newStudent}</td>
+          <td class="p-3 border text-center"><input type="checkbox" class="pCheck"></td>
+          <td class="p-3 border text-center"><input type="checkbox" class="aCheck"></td>
+        `;
+        studentTable.appendChild(row);
+        document.getElementById('newStudent').value = '';
+        closeModal('studentModal');
+      }
+    }
+
+    // Export Attendance as CSV
+    function exportCSV() {
+      let rows = [["#", "Name", "Present", "Absent"]];
+      [...studentTable.children].forEach((row, i) => {
+        let name = row.children[1].innerText;
+        let present = row.querySelector(".pCheck").checked ? "P" : "";
+        let absent = row.querySelector(".aCheck").checked ? "A" : "";
+        rows.push([i+1, name, present, absent]);
+      });
+
+      let csvContent = rows.map(r => r.join(",")).join("\n");
+      let blob = new Blob([csvContent], { type: "text/csv" });
+      let a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "attendance.csv";
+      a.click();
+    }
+
+    // Clear Attendance
+    function clearAttendance() {
+      document.querySelectorAll(".pCheck, .aCheck").forEach(chk => chk.checked = false);
+    }
+  </script>
+</body>
+</html>
