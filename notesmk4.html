@@ -808,7 +808,7 @@ function makeEmojiCursor(emoji, size=28, hotX=2, hotY=size-6) {
 function cursorForMode(mode) {
   switch (mode) {
     case 'select': return makeEmojiCursor('👆', 22, 4, 4);    // near top-left for precise picking
-    
+    case 'pen': return makeEmojiCursor('+', 22, 4, 4);
     case 'high':   return makeEmojiCursor('🖊️', 24, 2, 22);
     case 'eraser': return makeEmojiCursor('👋', 22, 4, 18);
     case 'shape':  return makeEmojiCursor('🔷', 22, 4, 18);
@@ -1911,4 +1911,5 @@ function toRgba(hex, a = 0.35) {
 </script>
 </body>
 </html>
+
 
